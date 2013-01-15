@@ -5,7 +5,8 @@ module Mongo::Rails::Instrumentation
     initializer "mongo.rails.instrumentation" do |app|
       instrument Mongo::Networking, [
         :send_message,
-        :send_message_with_gle,
+        :send_message_with_safe_check,  # mongo < 1.8.0
+        :send_message_with_gle,         # mongo >= 1.8.0
         :receive_message
       ]
 
@@ -18,6 +19,8 @@ module Mongo::Rails::Instrumentation
 
     def instrument(clazz, methods)
       clazz.module_eval do
+        # Clean up 1.8.0 changes
+        methods = methods.select { |m| clazz.method_defined?(m) }
         methods.each do |m|
           class_eval <<-CODE, __FILE__, __LINE__ + 1
             def #{m}_with_instrumentation(*args, &block)
